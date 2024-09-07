@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAppDispatch } from "./redux/store";
+import { updateToken } from "./redux/reducer/userReducer";
 
 const Login = () => {
   const navigatePage = () => {
@@ -8,11 +10,13 @@ const Login = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const token = queryParams.get("token");
     if (token) {
+      dispatch(updateToken(token));
       sessionStorage.setItem("token", JSON.stringify(token));
       navigate("/home");
     }
