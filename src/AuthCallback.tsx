@@ -11,7 +11,7 @@ const AuthCallback = () => {
       if (code) {
         try {
           const response = await axios.get(
-            `http://localhost:4500/google/callback?code=${code}`
+            `${import.meta.env.VITE_API_URL}/google/callback?code=${code}`
           );
           console.log(response.data); // User data from Google
           // Handle user data (e.g., save to state, redirect, etc.)
