@@ -21,14 +21,9 @@ const App = () => {
     <div className="w-full h-[100vh]">
       <BrowserRouter>
         <Routes>
-          {access_token ? (
-            <Route path="home" element={<Home />} />
-          ) : (
-            <>
-              <Route path="" element={<Login />} />
-              <Route path="auth/callback" element={<AuthCallback />} />
-            </>
-          )}
+          <Route path="home" element={<Home />} />
+          <Route path="" element={<Login />} />
+          <Route path="auth/callback" element={<AuthCallback />} />
         </Routes>
       </BrowserRouter>
     </div>

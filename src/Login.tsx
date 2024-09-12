@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAppDispatch } from "./redux/store";
+import { useAppDispatch, useAppSelector } from "./redux/store";
 import { updateToken } from "./redux/reducer/userReducer";
 
 const Login = () => {
@@ -8,9 +8,16 @@ const Login = () => {
     window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
   };
 
+  const { access_token } = useAppSelector((state) => state.user);
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (access_token) {
+      navigate("/home");
+    }
+  }, [access_token]);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
