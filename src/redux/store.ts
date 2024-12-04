@@ -1,11 +1,13 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 
+import messageSlice from "./reducer/messageReducer";
 import userSlice from "./reducer/userReducer";
 
 export const store = configureStore({
   reducer: {
     user: userSlice.reducer,
+    message: messageSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }),
