@@ -16,7 +16,7 @@ const Home = () => {
     (state) => state.user
   );
   const [selectUser, setSelectUser] = useState<User>(allUsers[0]);
-  const { ourConversation, loading } = useAppSelector((state) => state.message);
+  const { ourConversation } = useAppSelector((state) => state.message);
 
   // socket starts here
   const [message, setMessage] = useState("");
