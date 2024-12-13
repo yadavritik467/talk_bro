@@ -21,9 +21,13 @@ const Home = () => {
   // socket starts here
 
   // for voice calling
-  const localStreamRef = useRef<any>(null);
-  const remoteStreamRef = useRef<any>(null);
-  const [peerConnection, setPeerConnection] = useState<any>(null);
+  const [stream, setStream] = useState<any>(null);
+  const [call, setCall] = useState<any>({});
+  const [callAccepted, setCallAccepted] = useState(false);
+
+  const myVideo = useRef<any>();
+  const userVideo = useRef<any>();
+  const connectionRef = useRef<any>();
   // for message and typing
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<
@@ -37,69 +41,6 @@ const Home = () => {
   const [userInRooms, setuserInRooms] = useState<number[]>([]);
 
   // for voice calling
-
-  useEffect(() => {
-    // Create PeerConnection only once
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("ice-candidate", {
-          candidate: event.candidate,
-          id: selectUser?.id, // Ensure this points to the remote user
-        });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      remoteStreamRef.current.srcObject = event.streams[0]; // Set remote stream
-    };
-
-    setPeerConnection(pc);
-
-    socket.on("offer", async (data) => {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", {
-        sdp: answer,
-        id: data.senderId, // ID of the user who sent the offer
-      });
-    });
-
-    socket.on("answer", async (data) => {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    });
-
-    socket.on("ice-candidate", async (data) => {
-      if (data.candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    });
-
-    return () => pc.close(); // Clean up on component unmount
-  }, []);
-
-  const startCall = async () => {
-    return null;
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    localStreamRef.current.srcObject = stream; // Set local audio stream
-
-    stream.getTracks().forEach((track) => {
-      peerConnection.addTrack(track, stream); // Add tracks to the peer connection
-    });
-
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-
-    socket.emit("offer", {
-      sdp: offer,
-      id: selectUser?.id, // ID of the target user
-      senderId: user?.id, // Your unique ID
-    });
-  };
 
   //  for user connection and messaging
   useEffect(() => {
@@ -133,6 +74,17 @@ const Home = () => {
 
       socket.on("receiveTyping", (data) => {
         setTypingEvt(data?.typingInfo);
+      });
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((currentStream) => {
+          setStream(currentStream);
+          if (myVideo.current) {
+            myVideo.current.srcObject = currentStream;
+          }
+        });
+      socket.on("callIncoming", ({ from, signal }) => {
+        setCall({ isReceivingCall: true, from, signal });
       });
     }
   }, [user, socket]);
@@ -201,6 +153,99 @@ const Home = () => {
   const logOutHandler = () => {
     sessionStorage.removeItem("token");
     dispatch(logoutSuccess());
+  };
+
+  const callUser = (idToCall: number) => {
+    const peer = new RTCPeerConnection();
+
+    // Add local stream to the peer connection
+    stream.getTracks().forEach((track: any) => peer.addTrack(track, stream));
+
+    peer.ontrack = (event) => {
+      if (userVideo.current) {
+        userVideo.current.srcObject = event.streams[0];
+      }
+    };
+
+    // ICE candidate exchange
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("sendCandidate", {
+          to: idToCall,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    // Create and send an offer
+    peer
+      .createOffer()
+      .then((offer) => peer.setLocalDescription(offer))
+      .then(() => {
+        socket.emit("callUser", {
+          userToCall: idToCall,
+          from: user?.id,
+          signalData: peer.localDescription,
+        });
+      });
+
+    // Listen for answer
+    socket.on("callAnswered", (signal) => {
+      setCallAccepted(true);
+      peer.setRemoteDescription(signal);
+    });
+
+    // Listen for ICE candidates from the other peer
+    socket.on("receiveCandidate", (candidate) => {
+      peer.addIceCandidate(candidate);
+    });
+
+    connectionRef.current = peer;
+  };
+
+  const answerCall = () => {
+    setCallAccepted(true);
+
+    const peer = new RTCPeerConnection();
+
+    // Add local stream to the peer connection
+    stream.getTracks().forEach((track: any) => peer.addTrack(track, stream));
+
+    peer.ontrack = (event) => {
+      if (userVideo.current) {
+        userVideo.current.srcObject = event.streams[0];
+      }
+    };
+
+    // ICE candidate exchange
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("sendCandidate", {
+          to: call.from,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    // Set remote description and create an answer
+    peer.setRemoteDescription(call.signal).then(() => {
+      peer
+        .createAnswer()
+        .then((answer) => peer.setLocalDescription(answer))
+        .then(() => {
+          socket.emit("answerCall", {
+            to: call.from,
+            signal: peer.localDescription,
+          });
+        });
+    });
+
+    // Listen for ICE candidates from the other peer
+    socket.on("receiveCandidate", (candidate) => {
+      peer.addIceCandidate(candidate);
+    });
+
+    connectionRef.current = peer;
   };
 
   return (
@@ -339,7 +384,13 @@ const Home = () => {
                 ) : null}
                 {selectUser?.name}
               </h1>
-              <button onClick={startCall}>
+              <button
+                onClick={() =>
+                  user?.id === 7 || user?.id === 6
+                    ? callUser(selectUser?.id)
+                    : null
+                }
+              >
                 <svg
                   fill="none"
                   stroke="currentColor"
@@ -353,10 +404,19 @@ const Home = () => {
                   <path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
                 </svg>
               </button>
-              {/* <div>
-                <audio ref={localStreamRef} autoPlay controls />
-                <audio ref={remoteStreamRef} autoPlay controls />
-              </div> */}
+              {user?.id === 7 || user?.id === 6 ? (
+                <>
+                  <video ref={myVideo} autoPlay muted />
+                  {callAccepted && <video ref={userVideo} autoPlay />}
+
+                  {call.isReceivingCall && (
+                    <div>
+                      <h1>Incoming call from {call.from}</h1>
+                      <button onClick={answerCall}>Answer</button>
+                    </div>
+                  )}
+                </>
+              ) : null}
             </div>
           </header>
 
