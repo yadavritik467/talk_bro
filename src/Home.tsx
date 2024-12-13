@@ -23,7 +23,6 @@ const Home = () => {
   // for voice calling
   const localStreamRef = useRef<any>(null);
   const remoteStreamRef = useRef<any>(null);
-  const [calling, setCalling] = useState<boolean>(false);
   const [peerConnection, setPeerConnection] = useState<any>(null);
   // for message and typing
   const [message, setMessage] = useState("");
@@ -84,6 +83,7 @@ const Home = () => {
   }, []);
 
   const startCall = async () => {
+    return null;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     localStreamRef.current.srcObject = stream; // Set local audio stream
 
@@ -336,10 +336,10 @@ const Home = () => {
               <h1 className="text-xl lg:text-2xl font-semibold flex items-center gap-4">
                 {userInRooms?.includes(selectUser?.id) ? (
                   <div className="w-4 h-4 rounded-full bg-green-700"></div>
-                ) : null} 
+                ) : null}
                 {selectUser?.name}
               </h1>
-              {/* <button onClick={startCall}>
+              <button onClick={startCall}>
                 <svg
                   fill="none"
                   stroke="currentColor"
@@ -353,7 +353,7 @@ const Home = () => {
                   <path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
                 </svg>
               </button>
-              <div>
+              {/* <div>
                 <audio ref={localStreamRef} autoPlay controls />
                 <audio ref={remoteStreamRef} autoPlay controls />
               </div> */}
