@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { User } from "./component/interface/interface";
@@ -19,6 +19,13 @@ const Home = () => {
   const { ourConversation } = useAppSelector((state) => state.message);
 
   // socket starts here
+
+  // for voice calling
+  const localStreamRef = useRef<any>(null);
+  const remoteStreamRef = useRef<any>(null);
+  const [calling, setCalling] = useState<boolean>(false);
+  const [peerConnection, setPeerConnection] = useState<any>(null);
+  // for message and typing
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<
     {
@@ -30,6 +37,71 @@ const Home = () => {
   const [typingEvt, setTypingEvt] = useState<any>({});
   const [userInRooms, setuserInRooms] = useState<number[]>([]);
 
+  // for voice calling
+
+  useEffect(() => {
+    // Create PeerConnection only once
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("ice-candidate", {
+          candidate: event.candidate,
+          id: selectUser?.id, // Ensure this points to the remote user
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      remoteStreamRef.current.srcObject = event.streams[0]; // Set remote stream
+    };
+
+    setPeerConnection(pc);
+
+    socket.on("offer", async (data) => {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", {
+        sdp: answer,
+        id: data.senderId, // ID of the user who sent the offer
+      });
+    });
+
+    socket.on("answer", async (data) => {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    });
+
+    socket.on("ice-candidate", async (data) => {
+      if (data.candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    });
+
+    return () => pc.close(); // Clean up on component unmount
+  }, []);
+
+  const startCall = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStreamRef.current.srcObject = stream; // Set local audio stream
+
+    stream.getTracks().forEach((track) => {
+      peerConnection.addTrack(track, stream); // Add tracks to the peer connection
+    });
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.emit("offer", {
+      sdp: offer,
+      id: selectUser?.id, // ID of the target user
+      senderId: user?.id, // Your unique ID
+    });
+  };
+
+  //  for user connection and messaging
   useEffect(() => {
     socket.on("usersOffline", (userOffline) => {
       setuserInRooms(userOffline);
@@ -69,7 +141,8 @@ const Home = () => {
     setMessage(val);
     const typingInfo = {
       val,
-      userId: user?.id,
+      me: user,
+      myfriend: selectUser,
     };
     socket.emit("startTyping", typingInfo);
   };
@@ -193,6 +266,7 @@ const Home = () => {
                   className="flex relative items-center mb-4 cursor-pointer hover:bg-gray-100 p-2 rounded-md"
                   onClick={() => {
                     setSelectUser(all);
+                    setMessages([]);
                     isSidebarOpen ? toggleSidebar() : null;
                   }}
                 >
@@ -259,10 +333,13 @@ const Home = () => {
           {/* Chat Header */}
           <header className="bg-white p-4 text-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <h1 className="text-xl lg:text-2xl font-semibold">
+              <h1 className="text-xl lg:text-2xl font-semibold flex items-center gap-4">
+                {userInRooms?.includes(selectUser?.id) ? (
+                  <div className="w-4 h-4 rounded-full bg-green-700"></div>
+                ) : null} 
                 {selectUser?.name}
               </h1>
-              <button>
+              {/* <button onClick={startCall}>
                 <svg
                   fill="none"
                   stroke="currentColor"
@@ -276,6 +353,10 @@ const Home = () => {
                   <path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
                 </svg>
               </button>
+              <div>
+                <audio ref={localStreamRef} autoPlay controls />
+                <audio ref={remoteStreamRef} autoPlay controls />
+              </div> */}
             </div>
           </header>
 
@@ -307,7 +388,7 @@ const Home = () => {
                     key={index}
                     className="flex justify-end mb-4 cursor-pointer"
                   >
-                    <div className="flex max-w-xs lg:max-w-lg dark:bg-gray-800 text-white rounded-lg p-3">
+                    <div className="flex max-w-xs lg:max-w-lg bg-gray-800 text-white rounded-lg p-3">
                       <p>{msg?.content}</p>
                     </div>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center ml-2">
@@ -320,7 +401,37 @@ const Home = () => {
                   </div>
                 )
               )}
-            {typingEvt && typingEvt?.val && (
+            {typingEvt &&
+              typingEvt?.val &&
+              typingEvt?.me &&
+              typingEvt?.myfriend && (
+                <>
+                  {/* {typingEvt?.me?.id !== user?.id &&
+                  typingEvt?.myfriend?.Id === selectUser?.id ? (
+                    <div className="w-full flex gap-4 justify-start ">
+                      <img
+                        src={typingEvt?.me?.picture}
+                        alt={typingEvt?.me?.name}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <TypingLoader />
+                    </div>
+                  ) : null} */}
+                  {typingEvt?.me?.id === selectUser?.id ? (
+                    <div className="w-full flex gap-4 justify-start ">
+                      <img
+                        src={typingEvt?.me?.picture}
+                        alt={typingEvt?.me?.name}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <TypingLoader />
+                    </div>
+                  ) : null}
+                  {/* <p>user id : {typingEvt?.userId}</p>
+                <p>friend id : {typingEvt?.friendId}</p> */}
+                </>
+              )}
+            {/* {typingEvt && typingEvt?.val && (
               <>
                 {typingEvt?.userId !== user?.id ? (
                   <div className="w-full flex gap-4 justify-start ">
@@ -333,7 +444,7 @@ const Home = () => {
                   </div>
                 ) : null}
               </>
-            )}
+            )} */}
           </div>
 
           {/* Footer */}
@@ -348,7 +459,7 @@ const Home = () => {
               />
               <button
                 onClick={sendMessage}
-                className="dark:bg-gray-800 text-white px-4 py-2 rounded-md ml-2"
+                className="bg-gray-800 text-white px-4 py-2 rounded-md ml-2"
               >
                 Send
               </button>
