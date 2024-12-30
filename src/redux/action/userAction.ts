@@ -18,6 +18,7 @@ export const myProfile = () => {
         dispatch(myProfileSuccess(data.user));
       }
     } catch (error) {
+      console.log('err',error)
       dispatch(myProfileFail());
     }
   };
@@ -31,6 +32,7 @@ export const allUsers = () => {
         dispatch(allUsersSuccess(data.allUser));
       }
     } catch (error) {
+      console.log('err',error)
       dispatch(allUsersFail());
     }
   };
