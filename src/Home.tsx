@@ -23,6 +23,7 @@ const Home = () => {
   // for voice calling
   const [stream, setStream] = useState<any>(null);
   const [call, setCall] = useState<any>({});
+  const [callStart, setCallStart] = useState<boolean>(false);
   const [callAccepted, setCallAccepted] = useState(false);
 
   const myVideo = useRef<any>();
@@ -37,12 +38,21 @@ const Home = () => {
       senderId: number;
     }[]
   >([]);
+
   const [typingEvt, setTypingEvt] = useState<any>({});
   const [userInRooms, setuserInRooms] = useState<number[]>([]);
 
-  // for voice calling
+  const lastMessageRef = useRef<any>(null);
+
+  useEffect(() => {
+    const chatContainer = document.getElementById("chat-messages");
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }, [messages?.length]);
 
   //  for user connection and messaging
+
   useEffect(() => {
     socket.on("usersOffline", (userOffline) => {
       setuserInRooms(userOffline);
@@ -84,6 +94,8 @@ const Home = () => {
           }
         });
       socket.on("callIncoming", ({ from, signal }) => {
+        console.log("from", from);
+        console.log("signal", signal);
         setCall({ isReceivingCall: true, from, signal });
       });
     }
@@ -156,6 +168,7 @@ const Home = () => {
   };
 
   const callUser = (idToCall: number) => {
+    setCallStart(true);
     const peer = new RTCPeerConnection();
 
     // Add local stream to the peer connection
@@ -184,7 +197,7 @@ const Home = () => {
       .then(() => {
         socket.emit("callUser", {
           userToCall: idToCall,
-          from: user?.id,
+          from: user,
           signalData: peer.localDescription,
         });
       });
@@ -221,7 +234,7 @@ const Home = () => {
     peer.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("sendCandidate", {
-          to: call.from,
+          to: call?.from?.id,
           candidate: event.candidate,
         });
       }
@@ -234,7 +247,7 @@ const Home = () => {
         .then((answer) => peer.setLocalDescription(answer))
         .then(() => {
           socket.emit("answerCall", {
-            to: call.from,
+            to: call.from?.id,
             signal: peer.localDescription,
           });
         });
@@ -244,9 +257,34 @@ const Home = () => {
     socket.on("receiveCandidate", (candidate) => {
       peer.addIceCandidate(candidate);
     });
-
     connectionRef.current = peer;
   };
+
+  const haggingUpCall = (friendId: number) => {
+    socket.emit("cutCallToFriend", friendId);
+    setCallStart(false);
+    setCallAccepted(false);
+    setCall({});
+    // myVideo.current = null;
+    // userVideo.current = null;
+    connectionRef.current = null;
+  };
+
+  useEffect(() => {
+    socket.on("receiveCutCall", () => {
+      console.log("Call cut received. Cleaning up...");
+      setCallStart(false);
+      setCallAccepted(false);
+      setCall({});
+      // if (myVideo.current) myVideo.current = null;
+      // if (userVideo.current) userVideo.current = null;
+      if (connectionRef.current) connectionRef.current = null;
+    });
+
+    return () => {
+      socket.off("receiveCutCall"); // Cleanup listener on unmount
+    };
+  }, [socket]);
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden">
@@ -325,7 +363,8 @@ const Home = () => {
                   </div>
                   <div className="flex-1">
                     <h2 className="text-lg font-semibold">
-                      {all?.name} id {all?.id}
+                      {all?.name}{" "}
+                      {import.meta.env.VITE_MODE === "dev" && `id ${all?.id}`}
                     </h2>
                     <p className="text-gray-600">
                       {userInRooms?.includes(all?.id)
@@ -372,6 +411,86 @@ const Home = () => {
           />
         </svg>
       </button>
+      {/* voice calling */}
+
+      <div
+        style={{ display: callStart || call?.from ? "flex" : "none" }}
+        className="fixed w-full top-0 left-0 h-[100vh] bg-black bg-opacity-20 z-[100] justify-center items-center"
+      >
+        {callStart ? (
+          <div className="w-[500px] relative h-fit py-10 flex flex-col justify-center items-center bg-white rounded-md">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-20 h-20 rounded-full overflow-hidden shadow-lg mb-4">
+                <img
+                  src={selectUser?.picture}
+                  alt={selectUser?.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <p className="text-gray-500 text-sm">Calling...</p>
+              <h2 className="text-2xl font-bold text-gray-800">
+                {" "}
+                {selectUser?.name}{" "}
+              </h2>
+            </div>
+            <div className="flex w-full justify-center gap-4">
+              <button
+                onClick={() => haggingUpCall(selectUser?.id)}
+                className="bg-red-500 text-white px-6 py-3 rounded-full shadow hover:bg-red-600 transition"
+              >
+                Hang Up
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="w-[500px] relative h-fit py-10 flex flex-col justify-center items-center bg-white rounded-md">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-20 h-20 rounded-full overflow-hidden shadow-lg mb-4">
+                <img
+                  src={call?.from?.picture}
+                  alt={call?.from?.name}
+                  className="w-full h-full object-cover"
+                />
+                <img
+                  src={call?.from?.picture}
+                  alt={call?.from?.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">
+                {" "}
+                {call?.from?.name}{" "}
+              </h2>
+              <p className="text-gray-500 text-sm">Incoming Call...</p>
+            </div>
+
+            <div className="absolute z-[-5]">
+              <video ref={myVideo} autoPlay muted />
+              {callAccepted && <video ref={userVideo} autoPlay />}
+            </div>
+
+            {call.isReceivingCall && (
+              <div className="flex w-full justify-center gap-4">
+                <button
+                  onClick={() => haggingUpCall(call?.from?.id)}
+                  className="bg-red-500 text-white px-6 py-3 rounded-full shadow hover:bg-red-600 transition"
+                >
+                  Hang Up
+                </button>
+                {!callAccepted && (
+                  <button
+                    onClick={answerCall}
+                    className="bg-green-500 text-white px-6 py-3 rounded-full shadow hover:bg-green-600 transition"
+                  >
+                    Answer
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Main Chat Area */}
       {selectUser ? (
         <div className="flex-1 flex flex-col h-full lg:h-full">
@@ -384,13 +503,7 @@ const Home = () => {
                 ) : null}
                 {selectUser?.name}
               </h1>
-              <button
-                onClick={() =>
-                  user?.id === 7 || user?.id === 6
-                    ? callUser(selectUser?.id)
-                    : null
-                }
-              >
+              <button onClick={() => callUser(selectUser?.id)}>
                 <svg
                   fill="none"
                   stroke="currentColor"
@@ -404,24 +517,11 @@ const Home = () => {
                   <path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
                 </svg>
               </button>
-              {user?.id === 7 || user?.id === 6 ? (
-                <>
-                  <video ref={myVideo} autoPlay muted />
-                  {callAccepted && <video ref={userVideo} autoPlay />}
-
-                  {call.isReceivingCall && (
-                    <div>
-                      <h1>Incoming call from {call.from}</h1>
-                      <button onClick={answerCall}>Answer</button>
-                    </div>
-                  )}
-                </>
-              ) : null}
             </div>
           </header>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4" id="chat-messages">
             {/* Incoming Message */}
 
             {messages
@@ -429,54 +529,43 @@ const Home = () => {
                 (msg) =>
                   msg?.senderId === selectUser?.id || msg?.senderId === user?.id
               )
-              ?.map((msg, index) =>
-                msg?.senderId !== user?.id ? (
-                  <div key={index} className="flex mb-4 cursor-pointer">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center mr-2">
-                      <img
-                        src={selectUser?.picture}
-                        alt={selectUser?.name}
-                        className="w-8 h-8 rounded-full"
-                      />
+              ?.map((msg, index) => (
+                <div key={index}>
+                  {msg?.senderId !== user?.id ? (
+                    <div className="flex mb-4 cursor-pointer">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center mr-2">
+                        <img
+                          src={selectUser?.picture}
+                          alt={selectUser?.name}
+                          className="w-8 h-8 rounded-full"
+                        />
+                      </div>
+                      <div className="flex max-w-xs lg:max-w-lg bg-gray-200 rounded-lg p-3">
+                        <p className="text-gray-700">{msg?.content} </p>
+                      </div>
                     </div>
-                    <div className="flex max-w-xs lg:max-w-lg bg-gray-200 rounded-lg p-3">
-                      <p className="text-gray-700">{msg?.content} </p>
+                  ) : (
+                    <div className="flex justify-end mb-4 cursor-pointer">
+                      <div className="flex max-w-xs lg:max-w-lg bg-gray-800 text-white rounded-lg p-3">
+                        <p>{msg?.content}</p>
+                      </div>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center ml-2">
+                        <img
+                          src={user?.picture}
+                          alt="My Avatar"
+                          className="w-8 h-8 rounded-full"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    key={index}
-                    className="flex justify-end mb-4 cursor-pointer"
-                  >
-                    <div className="flex max-w-xs lg:max-w-lg bg-gray-800 text-white rounded-lg p-3">
-                      <p>{msg?.content}</p>
-                    </div>
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center ml-2">
-                      <img
-                        src={user?.picture}
-                        alt="My Avatar"
-                        className="w-8 h-8 rounded-full"
-                      />
-                    </div>
-                  </div>
-                )
-              )}
+                  )}
+                </div>
+              ))}
+            <div ref={lastMessageRef}></div>
             {typingEvt &&
               typingEvt?.val &&
               typingEvt?.me &&
               typingEvt?.myfriend && (
                 <>
-                  {/* {typingEvt?.me?.id !== user?.id &&
-                  typingEvt?.myfriend?.Id === selectUser?.id ? (
-                    <div className="w-full flex gap-4 justify-start ">
-                      <img
-                        src={typingEvt?.me?.picture}
-                        alt={typingEvt?.me?.name}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <TypingLoader />
-                    </div>
-                  ) : null} */}
                   {typingEvt?.me?.id === selectUser?.id ? (
                     <div className="w-full flex gap-4 justify-start ">
                       <img
@@ -487,24 +576,8 @@ const Home = () => {
                       <TypingLoader />
                     </div>
                   ) : null}
-                  {/* <p>user id : {typingEvt?.userId}</p>
-                <p>friend id : {typingEvt?.friendId}</p> */}
                 </>
               )}
-            {/* {typingEvt && typingEvt?.val && (
-              <>
-                {typingEvt?.userId !== user?.id ? (
-                  <div className="w-full flex gap-4 justify-start ">
-                    <img
-                      src={user?.picture}
-                      alt={user?.name}
-                      className="w-8 h-8 rounded-full"
-                    />
-                    <TypingLoader />
-                  </div>
-                ) : null}
-              </>
-            )} */}
           </div>
 
           {/* Footer */}
