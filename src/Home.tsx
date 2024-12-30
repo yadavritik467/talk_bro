@@ -218,10 +218,8 @@ const Home = () => {
 
   const answerCall = () => {
     setCallAccepted(true);
-
     const peer = new RTCPeerConnection();
 
-    // Add local stream to the peer connection
     stream.getTracks().forEach((track: any) => peer.addTrack(track, stream));
 
     peer.ontrack = (event) => {
@@ -230,55 +228,53 @@ const Home = () => {
       }
     };
 
-    // ICE candidate exchange
     peer.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("sendCandidate", {
-          to: call?.from?.id,
+          to: call.from?.id,
           candidate: event.candidate,
         });
       }
     };
 
-    // Set remote description and create an answer
-    peer.setRemoteDescription(call.signal).then(() => {
-      peer
-        .createAnswer()
-        .then((answer) => peer.setLocalDescription(answer))
-        .then(() => {
-          socket.emit("answerCall", {
-            to: call.from?.id,
-            signal: peer.localDescription,
-          });
+    // Add state management and error handling
+    peer
+      .setRemoteDescription(call.signal)
+      .then(() => peer.createAnswer())
+      .then((answer) => peer.setLocalDescription(answer))
+      .then(() => {
+        socket.emit("answerCall", {
+          to: call.from?.id,
+          signal: peer.localDescription,
         });
-    });
+      })
+      .catch((error) => {
+        console.error("Error in answering call:", error);
+      });
 
-    // Listen for ICE candidates from the other peer
     socket.on("receiveCandidate", (candidate) => {
-      peer.addIceCandidate(candidate);
+      peer.addIceCandidate(candidate).catch((error) => {
+        console.error("Error adding ICE candidate:", error);
+      });
     });
     connectionRef.current = peer;
   };
 
-  const haggingUpCall = (friendId: number) => {
-    socket.emit("cutCallToFriend", friendId);
+  const haggingUpCall = (friendId: number, frndName: string) => {
+    socket.emit("cutCallToFriend", { friendId, frndName });
     setCallStart(false);
     setCallAccepted(false);
     setCall({});
-    // myVideo.current = null;
-    // userVideo.current = null;
-    connectionRef.current = null;
   };
 
   useEffect(() => {
-    socket.on("receiveCutCall", () => {
-      console.log("Call cut received. Cleaning up...");
+    socket.on("receiveCutCall", (message) => {
       setCallStart(false);
       setCallAccepted(false);
       setCall({});
-      // if (myVideo.current) myVideo.current = null;
-      // if (userVideo.current) userVideo.current = null;
-      if (connectionRef.current) connectionRef.current = null;
+      setTimeout(() => {
+        alert(message);
+      }, 1000);
     });
 
     return () => {
@@ -435,7 +431,7 @@ const Home = () => {
             </div>
             <div className="flex w-full justify-center gap-4">
               <button
-                onClick={() => haggingUpCall(selectUser?.id)}
+                onClick={() => haggingUpCall(selectUser?.id, selectUser?.name)}
                 className="bg-red-500 text-white px-6 py-3 rounded-full shadow hover:bg-red-600 transition"
               >
                 Hang Up
@@ -472,7 +468,9 @@ const Home = () => {
             {call.isReceivingCall && (
               <div className="flex w-full justify-center gap-4">
                 <button
-                  onClick={() => haggingUpCall(call?.from?.id)}
+                  onClick={() =>
+                    haggingUpCall(call?.from?.id, call?.from?.name)
+                  }
                   className="bg-red-500 text-white px-6 py-3 rounded-full shadow hover:bg-red-600 transition"
                 >
                   Hang Up
