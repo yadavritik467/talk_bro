@@ -503,13 +503,7 @@ const Home = () => {
                 ) : null}
                 {selectUser?.name}
               </h1>
-              <button
-                onClick={() =>
-                  user?.id === 7 || user?.id === 6
-                    ? callUser(selectUser?.id)
-                    : null
-                }
-              >
+              <button onClick={() => callUser(selectUser?.id)}>
                 <svg
                   fill="none"
                   stroke="currentColor"
