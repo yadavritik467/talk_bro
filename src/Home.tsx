@@ -257,7 +257,6 @@ const Home = () => {
         console.error("Error adding ICE candidate:", error);
       });
     });
-
     connectionRef.current = peer;
   };
 
