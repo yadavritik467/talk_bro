@@ -1,0 +1,29 @@
+version: "3.8" #docker-compose version
+
+services:
+  react-talkbro-front:
+    # Set the container name
+    container_name: react-talkbro-front_c
+
+    # set name for the image
+    image: react-talkbro-front_i
+
+    # Build the image using the Dockerfile in the current context
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+      # Map host port 5173 to container port 5173
+    ports:
+      - "5173:5173" #<host_port>:<container_port/protocol_port>
+
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+    # Mount the current directory to /app in the container
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+    # Specify the command to run when the container starts
+    command: npm run dev

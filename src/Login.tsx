@@ -38,10 +38,10 @@ const Login = () => {
     navigate("/home");
   };
   return (
-    <div className="flex flex-col items-center justify-center h-screen dark:bg-gray-800">
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-800">
       <button
         onClick={navigatePage}
-        className="px-4 py-2 border flex gap-2 border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:shadow transition duration-150"
+        className="px-4 py-2 border flex gap-2 border-slate-200 dark:border-slate-700 rounded-lg text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:shadow transition duration-150"
       >
         <img
           className="w-6 h-6"
@@ -51,10 +51,11 @@ const Login = () => {
         />
         <span>Login with Google</span>
       </button>
+
       {import.meta.env.VITE_MODE === "dev" ? (
         <button
           onClick={letMeIn}
-          className="px-4 py-2 my-2 border flex gap-2 border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:shadow transition duration-150"
+          className="px-4 py-2 my-2 border flex gap-2 border-slate-200 dark:border-slate-700 rounded-lg text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:shadow transition duration-150"
         >
           <img
             className="w-6 h-6"
@@ -65,6 +66,12 @@ const Login = () => {
           <span>Let me in with sunground tech id</span>
         </button>
       ) : null}
+
+      <p className="text-white py-5 w-[250px]">
+        Note : - if you face any internal server error through login. please do
+        login again since there was no any login request has been hit yet so render
+        platform takes a bit time to start its server.{" "}
+      </p>
     </div>
   );
 };

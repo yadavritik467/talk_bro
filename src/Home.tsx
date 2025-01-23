@@ -431,7 +431,9 @@ const Home = () => {
             </div>
             <div className="flex w-full justify-center gap-4">
               <button
-                onClick={() => haggingUpCall(selectUser?.id, selectUser?.name)}
+                onClick={() =>
+                  haggingUpCall(selectUser?.id, user?.name as string)
+                }
                 className="bg-red-500 text-white px-6 py-3 rounded-full shadow hover:bg-red-600 transition"
               >
                 Hang Up
