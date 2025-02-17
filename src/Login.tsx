@@ -2,6 +2,9 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "./redux/store";
 import { updateToken } from "./redux/reducer/userReducer";
+import CustomInput from "./component/CustomInput";
+import { FiLock, FiUser } from "react-icons/fi";
+import Button from "./component/CustomButton";
 
 const Login = () => {
   const navigatePage = () => {
@@ -22,6 +25,7 @@ const Login = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const token = queryParams.get("token");
+    console.log("first",token)
     if (token) {
       dispatch(updateToken(token));
       sessionStorage.setItem("token", JSON.stringify(token));
@@ -37,42 +41,41 @@ const Login = () => {
     sessionStorage.setItem("token", JSON.stringify(token));
     navigate("/home");
   };
+
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-800">
-      <button
-        onClick={navigatePage}
-        className="px-4 py-2 border flex gap-2 border-slate-200 dark:border-slate-700 rounded-lg text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:shadow transition duration-150"
-      >
-        <img
-          className="w-6 h-6"
-          src="https://www.svgrepo.com/show/475656/google-color.svg"
-          loading="lazy"
-          alt="google logo"
-        />
-        <span>Login with Google</span>
-      </button>
+    <>
+      <div className="bg-gray-700 w-full h-full overflow-x-hidden overflow-y-auto flex justify-center items-center font-poppins">
+        <div className="w-[80%] max-w-[1000px] bg-gray-100 rounded-[40px] grid grid-cols-12 gap-x-5 p-10 pb-0">
+          <div className="col-span-12 lg:col-span-6 lg:border-e-2 flex justify-center items-center">
+            <div className="max-w-full text-center">
+              <h1 className="text-[36px] leading-[0.99] font-bold">Talk<span className="text-orange-600">Bro</span></h1>
+              <p className="mt-1 text-sm text-gray-400 font-semibold">RELIABLE | FAST | REAL-TIME | SECURE</p>
+              <div className="mt-8 w-full">
+                <CustomInput prefixIcon={<FiUser className="text-gray-700" />} className="text-gray-50 mb-3" placeholder="Email" />
+                <CustomInput prefixIcon={<FiLock className="text-gray-700" />} className="text-gray-50 mb-3" placeholder="Password" />
+                <Button variant="dark" className="w-full">Login</Button>
+                <hr className="border my-5" />
 
-      {import.meta.env.VITE_MODE === "dev" ? (
-        <button
-          onClick={letMeIn}
-          className="px-4 py-2 my-2 border flex gap-2 border-slate-200 dark:border-slate-700 rounded-lg text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-slate-300 hover:shadow transition duration-150"
-        >
-          <img
-            className="w-6 h-6"
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            loading="lazy"
-            alt="google logo"
-          />
-          <span>Let me in with sunground tech id</span>
-        </button>
-      ) : null}
-
-      <p className="text-white py-5 w-[250px]">
-        Note : - if you face any internal server error through login. please do
-        login again since there was no any login request has been hit yet so render
-        platform takes a bit time to start its server.{" "}
-      </p>
-    </div>
+                <Button icon={<img
+                  className="w-6 h-6"
+                  src="https://www.svgrepo.com/show/475656/google-color.svg"
+                  loading="lazy"
+                  alt="google logo"
+                />} onClick={navigatePage} variant="outline" className="w-full">Login with google</Button>
+                <div className="flex justify-between mt-3">
+                  <p onClick={letMeIn} className="text-[10px] cursor-pointer text-blue-400 hover:underline text-start">Demo Login</p>
+                  <p className="text-[10px] cursor-pointer text-blue-400 hover:underline text-start">Forgot Password</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-span-6 justify-end items-center hidden lg:flex">
+            <img className="w-[200px] sm:w-[400px] max-w-full m-0" src="/public/images/login-page-image.svg" loading="lazy" alt="talkbro" />
+          </div>
+          <p className="mt-10 mb-5 col-span-12 text-[9px] text-center text-red-500">Note: Our backend is deployed on Render, so please have patience and try again if failed !</p>
+        </div>
+      </div>
+    </>
   );
 };
 
