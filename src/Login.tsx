@@ -25,7 +25,7 @@ const Login = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const token = queryParams.get("token");
-    console.log("first",token)
+    
     if (token) {
       dispatch(updateToken(token));
       sessionStorage.setItem("token", JSON.stringify(token));
@@ -44,8 +44,8 @@ const Login = () => {
 
   return (
     <>
-      <div className="bg-gray-700 w-full h-full overflow-x-hidden overflow-y-auto flex justify-center items-center font-poppins">
-        <div className="w-[80%] max-w-[1000px] bg-gray-100 rounded-[40px] grid grid-cols-12 gap-x-5 p-10 pb-0">
+      <div className="bg-gray-700 w-full h-full overflow-x-hidden overflow-y-auto flex justify-center items-center flex-col font-poppins">
+        <div className="w-[80%] max-w-[1000px] bg-gray-100 rounded-[40px] grid grid-cols-12 gap-x-5 p-10">
           <div className="col-span-12 lg:col-span-6 lg:border-e-2 flex justify-center items-center">
             <div className="max-w-full text-center">
               <h1 className="text-[36px] leading-[0.99] font-bold">Talk<span className="text-orange-600">Bro</span></h1>
@@ -70,10 +70,10 @@ const Login = () => {
             </div>
           </div>
           <div className="col-span-6 justify-end items-center hidden lg:flex">
-            <img className="w-[200px] sm:w-[400px] max-w-full m-0" src="/public/images/login-page-image.svg" loading="lazy" alt="talkbro" />
+            <img className="w-[200px] sm:w-[400px] max-w-full m-0" src="/images/login-page-image.svg" loading="lazy" alt="talkbro" />
           </div>
-          <p className="mt-10 mb-5 col-span-12 text-[9px] text-center text-red-500">Note: Our backend is deployed on Render, so please have patience and try again if failed !</p>
         </div>
+          <p className="mt-2 col-span-12 text-[10px] text-center text-red-500">Note: Our backend is deployed on Render, so please have patience and try again if failed !</p>
       </div>
     </>
   );
